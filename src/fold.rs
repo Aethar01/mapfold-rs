@@ -80,9 +80,7 @@ impl Folding {
                         if d[i][l as usize][l as usize] == l {
                             dd += 1;
                         } else {
-                            println!("d: {:?}", d);
                             let mut m = d[i][l as usize][l as usize];
-                            println!("m: {}", m);
                             while m != l {
                                 if mod_value == 0 || l != mod_value || m % mod_value == res {
                                     gap[gg as usize] = m;
@@ -91,13 +89,7 @@ impl Folding {
                                     }
                                     count[m as usize] += 1;
                                 }
-                                let next_m = d[i][l as usize][b[m as usize] as usize];
-                                if next_m == m {
-                                    break;
-                                } else {
-                                    m = next_m;
-                                }
-                                // m = d[i][l as usize][b[m as usize] as usize];
+                                m = d[i][l as usize][b[m as usize] as usize];
                             }
                         }
                     }
@@ -126,6 +118,7 @@ impl Folding {
             }
 
             if l > 0 {
+                println!("l: {}, a: {:?}, g: {}", l, a, g);
                 a[l as usize] = gap[g as usize - 1];
                 b[l as usize] = b[a[l as usize] as usize];
                 b[a[l as usize] as usize] = l;

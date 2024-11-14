@@ -1,9 +1,9 @@
 use clap::Parser;
-mod fold;
+mod foldrename;
  
 #[derive(Parser)]
 struct Args {
-    /// Optional argument in the format `res/mod`
+    /// Optional argument in the format `res/mod`. Defaults to 0/0 if not provided.
     #[arg(short, long, num_args = 1, value_delimiter = '/')]
     res_mod: Vec<i32>,
 
@@ -32,7 +32,7 @@ fn main() {
     }
 
     println!("Folding...");
-    let mut folder = fold::Folding::new();
+    let mut folder = foldrename::Folding::new();
     folder.foldings(args.dimensions, true, res, mod_value);
     println!("{}", folder.next());
 }
