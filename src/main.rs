@@ -7,8 +7,8 @@ struct Args {
     #[arg(short, long, num_args = 1, value_delimiter = '/')]
     res_mod: Vec<i32>,
 
-    /// Dimensions for foldings in the format `n m`
-    #[arg(short, long, required = true, num_args = 2)]
+    /// Dimensions for foldings in the format `nxm`
+    #[arg(short, long, required = true, num_args = 1, value_delimiter = 'x')]
     dimensions: Vec<i32>,
 }
 
