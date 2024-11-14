@@ -1,146 +1,136 @@
-use num_bigint::BigInt;
-use num_traits::One;
+use std::usize;
+
+// use num_bigint::BigInt;
+// use num_traits::One;
 
 pub struct Folding {
-    m_n: i32,
-    m_count: u64,
+    pub fold_count: u64,
 }
 
 impl Folding {
     pub fn new() -> Self {
         Self {
-            m_n: -1,
-            m_count: 0,
+            fold_count: 0,
         }
     }
 
-    fn process(&mut self, _a: &Vec<i32>, _b: &Vec<i32>, n: i32) {
-        self.m_count += n as u64;
+    pub fn get_fold_count(&mut self, dimensions: &Vec<i32>, normal_only: bool, residue: i32, modulo: i32) -> u64 {
+        self.foldings(dimensions, normal_only, residue, modulo);
+        self.fold_count
     }
 
-    pub fn foldings(&mut self, p: Vec<i32>, flag: bool, res: i32, mod_value: i32) {
-        let mut n = 1;
-        for &pp in &p {
-            n *= pp;
-        } 
+    /// Update the fold count after each valid folding is generated
+    fn record_folding(&mut self, _above: &Vec<i32>, _below: &Vec<i32>, fold: i32) {
+        self.fold_count += fold as u64;
+    }
 
-        let mut a = vec![0; n as usize + 1];
-        let mut b = vec![0; n as usize + 1];
-        let mut count = vec![0; n as usize + 1];
-        let mut gapter = vec![0; n as usize + 1];
-        let mut gap = vec![0; n as usize * n as usize + 1];
+    /// Generate all possible foldings based on map dimensions, considering given constraints
+    pub fn foldings(&mut self, dimensions: &Vec<i32>, normal_only: bool, residue: i32, modulo: i32) {
+        self.fold_count = 0;
+        let total_leaves = dimensions.iter().product::<i32>();
 
-        let dim = p.len();
-        let mut big_p = vec![1; dim + 1];
-        let mut c = vec![vec![0; n as usize + 1]; dim + 1];
-        let mut d = vec![vec![vec![0; n as usize + 1]; n as usize + 1]; dim + 1];
+        let mut above = vec![0; (total_leaves + 1) as usize];
+        let mut below = vec![0; (total_leaves + 1) as usize];
+        let mut section_count = vec![0; (total_leaves + 1) as usize];
+        let mut section_gap_offset = vec![0; (total_leaves + 1) as usize];
+        let mut possible_gaps = vec![0; (total_leaves * total_leaves + 1) as usize];
 
-        for i in 1..dim {
-            big_p[i] = big_p[i - 1] * p[i - 1];
+        let dimension_count = dimensions.len();
+        let mut cumulative_dims = vec![1; dimension_count + 1];
+        let mut leaf_positions = vec![vec![0; (total_leaves + 1) as usize]; dimension_count + 1];
+        let mut leaf_links = vec![vec![vec![0; (total_leaves + 1) as usize]; (total_leaves + 1) as usize]; dimension_count + 1];
+
+        for i in 1..=dimension_count {
+            cumulative_dims[i] = cumulative_dims[i - 1] * dimensions[i - 1];
         }
 
-        for i in 1..=dim {
-            for m in 1..=n {
-                c[i][m as usize] = (m - 1) / big_p[i - 1] - ((m - 1) / big_p[i]) * p[i - 1] + 1;
+        for i in 1..=dimension_count {
+            for leaf in 1..=total_leaves {
+                leaf_positions[i][leaf as usize] = (leaf - 1) / cumulative_dims[i - 1] - ((leaf - 1) / cumulative_dims[i]) * dimensions[i - 1] + 1;
             }
         }
 
-        for i in 1..dim {
-            for l in 1..=n {
-                for m in 1..=l {
-                    let delta = c[i][l as usize] - c[i][m as usize];
-                    d[i][l as usize][m as usize] = if delta % 2 == 0 {
-                        if c[i][m as usize] == 1 {
-                            m
+        for i in 1..=dimension_count {
+            for leaf in 1..=total_leaves {
+                for base in 1..=leaf {
+                    let position_difference = leaf_positions[i][leaf as usize] - leaf_positions[i][base as usize];
+                    leaf_links[i][leaf as usize][base as usize] = if position_difference % 2 == 0 {
+                        if leaf_positions[i][base as usize] == 1 {
+                            base
                         } else {
-                            m - big_p[i - 1]
+                            base - cumulative_dims[i - 1]
                         }
-                    } else if c[i][m as usize] == p[i - 1] || m + big_p[i - 1] > l {
-                        m
+                    } else if leaf_positions[i][base as usize] == dimensions[i - 1] || base + cumulative_dims[i - 1] > leaf {
+                        base
                     } else {
-                        m + big_p[i - 1]
+                        base + cumulative_dims[i - 1]
                     };
                 }
             }
         }
-        
-        let mut g = 0;
-        let mut l = 1;
 
-        while l > 0 {
-            if !flag || l <= 1 || b[0] == 1{
-                if l > n {
-                    self.process(&a, &b, n);
+        let mut gap_index = 0;
+        let mut leaf_index = 1;
+
+        while leaf_index > 0 {
+            if !normal_only || leaf_index <= 1 || below[0] == 1 {
+                if leaf_index > total_leaves {
+                    self.record_folding(&above, &below, total_leaves);
                 } else {
-                    let mut dd = 0;
-                    let mut gg = gapter[l as usize - 1];
-                    g = gg;
+                    let mut unconstrained_sections = 0;
+                    let mut possible_gap_index = section_gap_offset[leaf_index as usize - 1];
+                    gap_index = possible_gap_index;
 
-                    for i in 1..=dim {
-                        if d[i][l as usize][l as usize] == l {
-                            dd += 1;
+                    for i in 1..=dimension_count {
+                        if leaf_links[i][leaf_index as usize][leaf_index as usize] == leaf_index {
+                            unconstrained_sections += 1;
                         } else {
-                            let mut m = d[i][l as usize][l as usize];
-                            while m != l {
-                                if mod_value == 0 || l != mod_value || m % mod_value == res {
-                                    gap[gg as usize] = m;
-                                    if count[m as usize] == 0 {
-                                        gg += 1;
+                            let mut m = leaf_links[i][leaf_index as usize][leaf_index as usize];
+                            while m != leaf_index {
+                                if modulo == 0 || leaf_index != modulo || m % modulo == residue {
+                                    possible_gaps[possible_gap_index as usize] = m;
+                                    if section_count[m as usize] == 0 {
+                                        possible_gap_index += 1;
                                     }
-                                    count[m as usize] += 1;
+                                    section_count[m as usize] += 1;
                                 }
-                                m = d[i][l as usize][b[m as usize] as usize];
+                                m = leaf_links[i][leaf_index as usize][below[m as usize] as usize];
                             }
                         }
                     }
-                    
-                    if dd == dim {
-                        for m in 0..l {
-                            gap[gg as usize] = m;
-                            gg += 1;
+
+                    if unconstrained_sections == dimension_count {
+                        for base in 0..leaf_index {
+                            possible_gaps[possible_gap_index as usize] = base;
+                            possible_gap_index += 1;
                         }
                     }
 
-                    for j in g..gg {
-                        gap[g as usize] = gap[j as usize];
-                        if count[gap[j as usize] as usize] == dim - dd {
-                            g += 1;
+                    for j in gap_index..possible_gap_index {
+                        possible_gaps[gap_index as usize] = possible_gaps[j as usize];
+                        if section_count[possible_gaps[j as usize] as usize] == dimension_count - unconstrained_sections {
+                            gap_index += 1;
                         }
-                        count[gap[j as usize] as usize] = 0;
+                        section_count[possible_gaps[j as usize] as usize] = 0;
                     }
                 }
             }
 
-            while l > 0 && g == gapter[l as usize - 1] {
-                l -= 1;
-                b[a[l as usize] as usize] = b[l as usize];
-                a[b[l as usize] as usize] = a[l as usize];
+            while leaf_index > 0 && gap_index == section_gap_offset[leaf_index as usize - 1] {
+                leaf_index -= 1;
+                below[above[leaf_index as usize] as usize] = below[leaf_index as usize];
+                above[below[leaf_index as usize] as usize] = above[leaf_index as usize];
             }
 
-            if l > 0 {
-                println!("l: {}, a: {:?}, g: {}", l, a, g);
-                a[l as usize] = gap[g as usize - 1];
-                b[l as usize] = b[a[l as usize] as usize];
-                b[a[l as usize] as usize] = l;
-                a[b[l as usize] as usize] = l;
-                gapter[l as usize] = g - 1;
-                l += 1;
+            if leaf_index > 0 {
+                gap_index -= 1;
+                above[leaf_index as usize] = possible_gaps[gap_index as usize];
+                below[leaf_index as usize] = below[above[leaf_index as usize] as usize];
+                below[above[leaf_index as usize] as usize] = leaf_index;
+                above[below[leaf_index as usize] as usize] = leaf_index;
+                section_gap_offset[leaf_index as usize] = gap_index;
+                leaf_index += 1;
             }
         }
-    }
-
-    fn get_dimensions(&self, n: i32) -> Vec<i32> {
-        vec![n, 2]
-    }
-
-    pub fn next(&mut self) -> BigInt {
-        if self.m_n == -1 {
-            self.m_n += 1;
-            BigInt::one();
-        }
-        self.m_n += 1;
-        self.m_count = 0;
-        self.foldings(self.get_dimensions(self.m_n), true, 0, 0);
-        BigInt::from(self.m_count)
     }
 }
