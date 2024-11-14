@@ -28,6 +28,7 @@ impl Folding {
     pub fn foldings(&mut self, dimensions: &Vec<i32>, normal_only: bool, residue: i32, modulo: i32) {
         self.fold_count = 0;
         let total_leaves = dimensions.iter().product::<i32>();
+        let dimension_count = dimensions.len();
 
         let mut above = vec![0; (total_leaves + 1) as usize];
         let mut below = vec![0; (total_leaves + 1) as usize];
@@ -35,7 +36,6 @@ impl Folding {
         let mut section_gap_offset = vec![0; (total_leaves + 1) as usize];
         let mut possible_gaps = vec![0; (total_leaves * total_leaves + 1) as usize];
 
-        let dimension_count = dimensions.len();
         let mut cumulative_dims = vec![1; dimension_count + 1];
         let mut leaf_positions = vec![vec![0; (total_leaves + 1) as usize]; dimension_count + 1];
         let mut leaf_links = vec![vec![vec![0; (total_leaves + 1) as usize]; (total_leaves + 1) as usize]; dimension_count + 1];
