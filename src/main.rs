@@ -1,4 +1,6 @@
 use clap::Parser;
+use log::{info, warn, error};
+use env_logger;
 mod fold;
  
 #[derive(Parser)]
@@ -10,28 +12,36 @@ struct Args {
     /// Dimensions for foldings in the format `nxm`
     #[arg(short, long, required = true, num_args = 1, value_delimiter = 'x')]
     dimensions: Vec<i32>,
+
+    /// Verbose mode
+    #[arg(short, long)]
+    verbose: bool,
 }
 
 
 fn main() {
     let  args = Args::parse();
+    if args.verbose {
+        std::env::set_var("RUST_LOG", "debug");
+    }
+    env_logger::init();
+    info!("Verbose mode enabled");
 
     let (res, mod_value) = if args.res_mod.len() == 2 {
-        println!("Using res/mod: {}/{}", args.res_mod[0], args.res_mod[1]);
+        info!("Using res/mod: {}/{}", args.res_mod[0], args.res_mod[1]);
         (args.res_mod[0], args.res_mod[1])
     } else {
-        println!("No or invalid res/mod provided; defaulting to 0/0");
+        warn!("No or invalid res/mod provided; defaulting to 0/0");
         (0, 0)
     };
 
     if args.dimensions.iter().any(|&x| x <= 0) {
-        println!("Invalid dimensions provided");
-        return;
+        error!("Invalid dimensions: {:?}", args.dimensions);
     } else {
-        println!("Using dimensions: {:?}", args.dimensions);
+        info!("Using dimensions: {:?}", args.dimensions);
     }
 
-    println!("Folding...");
+    info!("Folding...");
     let mut folder = fold::Folding::new();
     folder.get_fold_count(&args.dimensions, true, res, mod_value);
     println!("Fold count: {}", folder.fold_count);
@@ -69,11 +79,7 @@ mod tests {
         for (i, j) in known_values.iter().enumerate() {
             test_cases.push(i as i32 + 1, *j as u64);
         }
-        println!("{:?}", test_cases);
-
         for (expected, dimensions) in test_cases.expected.iter().zip(test_cases.dimensions.iter()) {
-            println!("Testing dimensions: 2x{:?}", dimensions);
-            println!("Expected: {}", expected);
             let twod_dimensions = vec![2, *dimensions];
             let mut folder = fold::Folding::new();
             assert_eq!(folder.get_fold_count(&twod_dimensions, true, 0, 0), *expected);
